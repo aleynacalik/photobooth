@@ -343,6 +343,9 @@
     $('rec-indicator').querySelector('.rec-text').textContent = 'LIVE';
 
     await camPromise;
+    if (state.stream) {
+      $('booth-video').play().catch(() => {});
+    }
     state.busy = false;
   }
 
@@ -370,6 +373,54 @@
     $('flip-cam-label').textContent = isRear ? 'REAR' : 'FRONT';
   }
 
+  async function acquireVideoStream(facingMode) {
+    const attempts = [
+      { video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false },
+      { video: { facingMode: facingMode }, audio: false },
+      { video: true, audio: false },
+    ];
+    let lastErr = null;
+    for (const constraints of attempts) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        lastErr = err;
+        // Stop immediately on explicit permission denial — retrying won't help
+        if (err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) {
+          throw err;
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  async function attachStreamToVideo(vid, stream) {
+    vid.muted = true;
+    vid.playsInline = true;
+    vid.setAttribute('playsinline', '');
+    vid.setAttribute('webkit-playsinline', 'true');
+    vid.srcObject = stream;
+
+    if (vid.readyState < 1) {
+      await new Promise(resolve => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true;
+          resolve();
+        };
+        vid.onloadedmetadata = finish;
+        setTimeout(finish, 1800);
+      });
+    }
+
+    try {
+      await vid.play();
+    } catch (_) {
+      // iOS Safari may defer autoplay until next tap; stream is still active
+    }
+  }
+
   async function initCamera(forceReacquire = false) {
     const vid = $('booth-video');
     const vf = $('viewfinder-screen');
@@ -386,28 +437,20 @@
     }
 
     if (state.stream) {
-      vid.srcObject = state.stream;
-      try { await vid.play(); } catch (_) {}
+      await attachStreamToVideo(vid, state.stream);
       return true;
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      $('cam-fallback-msg').textContent = 'Camera API is unavailable in this browser context. Try Analog Demo Mode to preview the full booth!';
+      $('cam-fallback-msg').textContent = 'Camera requires Safari or Chrome over HTTPS (in-app browsers like WhatsApp/Instagram often block camera access). Open in Safari/Chrome or try Demo Mode.';
       fallback.classList.add('on');
       return false;
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: state.facingMode }, width: { ideal: 1280 }, height: { ideal: 960 } },
-        audio: false,
-      });
+      const stream = await acquireVideoStream(state.facingMode);
       state.stream = stream;
-      vid.srcObject = stream;
-      await new Promise(resolve => {
-        vid.onloadedmetadata = resolve;
-      });
-      await vid.play();
+      await attachStreamToVideo(vid, stream);
       updateFlipUI();
       return true;
     } catch (err) {
@@ -418,7 +461,14 @@
         $('session-hint').textContent = 'Rear camera unavailable · Switched back to Front';
         return initCamera(true);
       }
-      $('cam-fallback-msg').textContent = 'Camera permission was blocked or no webcam was found. Retry camera or test with Analog Demo Mode.';
+      const code = err && err.name ? err.name : 'Error';
+      if (code === 'NotAllowedError' || code === 'PermissionDeniedError') {
+        $('cam-fallback-msg').textContent = 'Camera permission was denied. In Safari/Chrome, tap the address bar (AA / lock icon) → Website Settings → Camera: Allow, then tap Retry.';
+      } else if (code === 'NotReadableError') {
+        $('cam-fallback-msg').textContent = 'Camera is currently in use by another app. Close other camera apps and tap Retry.';
+      } else {
+        $('cam-fallback-msg').textContent = `Could not start camera (${code}). Open in Safari or Chrome, tap Retry, or try Demo Mode.`;
+      }
       fallback.classList.add('on');
       return false;
     }
