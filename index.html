@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#f7f5ef">
+  <title>PHOTOS — Analog Photobooth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,600&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Subtle paper grain overlay -->
+  <div class="paper-grain" aria-hidden="true"></div>
+
+  <!-- Global Sound Toggle -->
+  <button class="sound-toggle" id="btn-sound" type="button" aria-label="Toggle sound effects" title="Sound On">
+    <svg class="icon-sound-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+    </svg>
+    <svg class="icon-sound-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <line x1="23" y1="9" x2="17" y2="15"/>
+      <line x1="17" y1="9" x2="23" y2="15"/>
+    </svg>
+    <span class="sound-label">SFX ON</span>
+  </button>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 1: HOME — ILLUSTRATED ANALOG BOOTH ENTRANCE
+  ═══════════════════════════════════════════════════════ -->
+  <main class="screen home active" id="screen-home">
+
+    <header class="home-header">
+      <span class="badge-pill">
+        <span class="badge-dot"></span>
+        ANALOG BOOTH · NO. 04
+      </span>
+    </header>
+
+    <div class="cabin-center">
+      <!-- Interactive illustrated booth (exact untouched artwork + pixel-aligned curtain slices) -->
+      <div class="cabin-stage" id="cabin-stage" role="button" tabindex="0" aria-label="Step inside the photobooth">
+        <!-- Base artwork: untouched Property 1=Default.png -->
+        <img class="cabin-base" src="assets/booth-cabin.png" alt="Analog Photo Booth" draggable="false">
+
+        <!-- Doorway curtain zone: exact pixel coordinates (33.25%..54.75% x, 32.30%..66.90% y) -->
+        <div class="doorway-wrap" id="doorway-wrap" aria-hidden="true">
+          <!-- Warm dark booth interior revealed when curtains part -->
+          <div class="doorway-interior">
+            <div class="interior-bulb"></div>
+            <div class="interior-beam"></div>
+            <div class="interior-wall"></div>
+            <div class="interior-bench"></div>
+          </div>
+
+          <!-- Left curtain half sliced 1:1 from booth-cabin.png -->
+          <div class="curtain-half left" id="curtain-left">
+            <img src="assets/booth-cabin.png" alt="" draggable="false">
+            <div class="curtain-patch-l"></div>
+            <div class="curtain-fold-shadow"></div>
+          </div>
+
+          <!-- Right curtain half sliced 1:1 from booth-cabin.png -->
+          <div class="curtain-half right" id="curtain-right">
+            <img src="assets/booth-cabin.png" alt="" draggable="false">
+            <div class="curtain-patch-r"></div>
+            <div class="curtain-fold-shadow"></div>
+          </div>
+        </div>
+
+        <!-- Hanging ENTER sign layer kept intact in front of parting curtains -->
+        <div class="enter-plaque" id="enter-plaque" aria-hidden="true">
+          <div class="enter-plaque-crop">
+            <img src="assets/booth-cabin.png" alt="" draggable="false">
+          </div>
+        </div>
+
+        <!-- Soft hover cue over the doorway -->
+        <div class="doorway-glow" aria-hidden="true"></div>
+      </div>
+
+      <p class="cabin-prompt" id="cabin-prompt">
+        <span class="prompt-star">✦</span>
+        <span>Click the booth to draw the curtain</span>
+        <span class="prompt-star">✦</span>
+      </p>
+    </div>
+
+    <!-- Compact Analog Control Dock -->
+    <footer class="home-dock">
+      <div class="dock-group" role="group" aria-label="Photo strip count">
+        <span class="dock-label">STRIP</span>
+        <div class="seg-control">
+          <button class="seg-btn active" type="button" data-count="4">4 PHOTOS</button>
+          <button class="seg-btn" type="button" data-count="3">3 PHOTOS</button>
+        </div>
+      </div>
+
+      <div class="dock-divider" aria-hidden="true"></div>
+
+      <div class="dock-group" role="group" aria-label="Analog film filter">
+        <span class="dock-label">FILM</span>
+        <div class="seg-control">
+          <button class="seg-btn active" type="button" data-filter="bw">
+            <span class="film-dot dot-bw"></span>B&amp;W
+          </button>
+          <button class="seg-btn" type="button" data-filter="warm">
+            <span class="film-dot dot-warm"></span>WARM FILM
+          </button>
+          <button class="seg-btn" type="button" data-filter="sepia">
+            <span class="film-dot dot-sepia"></span>SEPIA
+          </button>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 2: SESSION — INSIDE THE ANALOG BOOTH
+  ═══════════════════════════════════════════════════════ -->
+  <section class="screen session" id="screen-session" aria-hidden="true">
+
+    <!-- Cel-shaded Booth Interior Backdrop (matching booth-cabin.png palette) -->
+    <div class="booth-interior-bg" aria-hidden="true">
+      <!-- Top brass curtain rod -->
+      <svg class="interior-rod" viewBox="0 0 1440 46" preserveAspectRatio="none">
+        <rect x="0" y="0" width="1440" height="46" fill="#102535"/>
+        <line x1="0" y1="45" x2="1440" y2="45" stroke="#081520" stroke-width="2"/>
+        <rect x="0" y="18" width="1440" height="9" rx="4" fill="#918b74" stroke="#132230" stroke-width="2"/>
+        <rect x="0" y="19" width="1440" height="3" fill="#c4bba0" opacity="0.7"/>
+        <g fill="#565b52" stroke="#132230" stroke-width="1.6">
+          <rect x="52" y="14" width="10" height="18" rx="4"/>
+          <rect x="112" y="14" width="10" height="18" rx="4"/>
+          <rect x="172" y="14" width="10" height="18" rx="4"/>
+          <rect x="1258" y="14" width="10" height="18" rx="4"/>
+          <rect x="1318" y="14" width="10" height="18" rx="4"/>
+          <rect x="1378" y="14" width="10" height="18" rx="4"/>
+        </g>
+      </svg>
+
+      <!-- Left heavy navy curtain -->
+      <svg class="side-curtain left" viewBox="0 0 210 900" preserveAspectRatio="none">
+        <path d="M0,0 L185,0 C192,80 172,160 184,250 C196,340 170,430 180,520 C190,610 165,710 174,800 L166,900 L0,900 Z" fill="#101f36" stroke="#08111e" stroke-width="3"/>
+        <path d="M24,0 L20,900 L56,900 L62,0 Z" fill="#1b2d46"/>
+        <path d="M84,0 L78,900 L108,900 L114,0 Z" fill="#0c182b"/>
+        <path d="M132,0 L126,900 L154,900 L162,0 Z" fill="#1b2d46" opacity="0.8"/>
+        <line x1="62" y1="0" x2="56" y2="900" stroke="#08111e" stroke-width="2"/>
+        <line x1="114" y1="0" x2="108" y2="900" stroke="#08111e" stroke-width="2"/>
+      </svg>
+
+      <!-- Right heavy navy curtain -->
+      <svg class="side-curtain right" viewBox="0 0 210 900" preserveAspectRatio="none">
+        <path d="M210,0 L25,0 C18,80 38,160 26,250 C14,340 40,430 30,520 C20,610 45,710 36,800 L44,900 L210,900 Z" fill="#101f36" stroke="#08111e" stroke-width="3"/>
+        <path d="M186,0 L190,900 L154,900 L148,0 Z" fill="#1b2d46"/>
+        <path d="M126,0 L132,900 L102,900 L96,0 Z" fill="#0c182b"/>
+        <path d="M78,0 L84,900 L56,900 L48,0 Z" fill="#1b2d46" opacity="0.8"/>
+        <line x1="148" y1="0" x2="154" y2="900" stroke="#08111e" stroke-width="2"/>
+        <line x1="96" y1="0" x2="102" y2="900" stroke="#08111e" stroke-width="2"/>
+      </svg>
+
+      <!-- Warm interior glow & vignette -->
+      <div class="interior-vignette"></div>
+    </div>
+
+    <!-- Top exit bar -->
+    <div class="session-topbar">
+      <button class="booth-exit-btn" id="btn-exit-booth" type="button">
+        <span>←</span> STEP OUT
+      </button>
+      <div class="booth-plaque-mini">PHOTOS · ANALOG</div>
+      <div class="session-counter-pill" id="session-counter">READY</div>
+    </div>
+
+    <!-- Center Analog Machine Console + Film Reel Progress -->
+    <div class="session-body">
+      <div class="console-housing">
+        <!-- Metallic beveled top bar with camera lens & flash lamp -->
+        <div class="console-top">
+          <div class="flash-lamp" id="flash-lamp" aria-hidden="true">
+            <span class="lamp-core"></span>
+          </div>
+          <div class="camera-lens-assembly" aria-hidden="true">
+            <div class="lens-outer">
+              <div class="lens-inner">
+                <div class="lens-glint"></div>
+              </div>
+            </div>
+            <span class="lens-tag">35MM · f/2.8</span>
+          </div>
+          <div class="rec-indicator" id="rec-indicator">
+            <span class="rec-dot"></span>
+            <span class="rec-text">LIVE</span>
+          </div>
+        </div>
+
+        <!-- Viewfinder Screen -->
+        <div class="viewfinder-bezel">
+          <div class="viewfinder-screen" id="viewfinder-screen">
+            <video id="booth-video" autoplay playsinline muted></video>
+            <canvas id="demo-preview-canvas" class="demo-preview-canvas"></canvas>
+
+            <!-- Framing reticle -->
+            <div class="vf-guides" aria-hidden="true">
+              <span class="vf-c tl"></span>
+              <span class="vf-c tr"></span>
+              <span class="vf-c bl"></span>
+              <span class="vf-c br"></span>
+              <span class="vf-cross">+</span>
+            </div>
+
+            <!-- Countdown overlay -->
+            <div class="countdown-overlay" id="countdown-overlay">
+              <div class="countdown-num" id="countdown-num">3</div>
+              <div class="countdown-sub" id="countdown-sub">FRAME 1 OF 4</div>
+            </div>
+
+            <!-- White studio flash -->
+            <div class="flash-burst" id="flash-burst"></div>
+
+            <!-- Camera denied / fallback card -->
+            <div class="cam-fallback" id="cam-fallback">
+              <div class="fallback-icon">📷</div>
+              <h3>Camera Access Needed</h3>
+              <p id="cam-fallback-msg">Allow camera access to step in front of the lens, or test the booth with Analog Demo Mode.</p>
+              <div class="fallback-actions">
+                <button class="btn-brass" id="btn-retry-cam" type="button">RETRY CAMERA</button>
+                <button class="btn-outline-light" id="btn-demo-mode" type="button">TRY DEMO MODE</button>
+              </div>
+            </div>
+
+            <!-- Developing overlay -->
+            <div class="developing-overlay" id="developing-overlay">
+              <div class="dev-badge">DARKROOM</div>
+              <div class="dev-title">Developing your film…</div>
+              <div class="dev-film-track">
+                <div class="dev-film-fill" id="dev-film-fill"></div>
+              </div>
+              <div class="dev-sub">SLIDING TO DISPENSER</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Console Bottom Controls (Live Filter Switcher + Shutter Trigger) -->
+        <div class="console-controls" id="console-controls">
+          <div class="console-filters" role="group" aria-label="Switch analog filter">
+            <button class="c-filter-btn active" type="button" data-filter="bw">B&amp;W</button>
+            <button class="c-filter-btn" type="button" data-filter="warm">WARM</button>
+            <button class="c-filter-btn" type="button" data-filter="sepia">SEPIA</button>
+          </div>
+
+          <button class="btn-shutter" id="btn-start-shoot" type="button">
+            <span class="shutter-ring"></span>
+            <span class="shutter-label">START SESSION</span>
+          </button>
+
+          <button class="btn-flip-cam" id="btn-flip-cam" type="button" title="Switch front / rear camera" aria-label="Switch front or rear camera">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 16h5v5"/>
+            </svg>
+            <span id="flip-cam-label">FRONT</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Vertical Film-Strip Thumbnail Tray -->
+      <aside class="film-tray" aria-label="Captured frames">
+        <div class="film-tray-label">ROLL</div>
+        <div class="film-slots" id="film-slots"></div>
+      </aside>
+    </div>
+
+    <div class="session-hint" id="session-hint">Check your pose · Press Space or click Start Session</div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 3: RESULT — PHOTO DISPENSER CHUTE & EDITOR
+  ═══════════════════════════════════════════════════════ -->
+  <section class="screen result" id="screen-result" aria-hidden="true">
+
+    <header class="result-header">
+      <div class="result-brand">
+        <span class="badge-pill">
+          <span class="badge-dot"></span>
+          PRINT READY
+        </span>
+      </div>
+      <div class="result-header-actions">
+        <button class="btn-ghost" id="btn-replay-slide" type="button" title="Replay dispenser animation">
+          ↻ REPLAY PRINT
+        </button>
+        <button class="btn-ghost" id="btn-zoom-strip" type="button" title="Inspect strip larger">
+          ⤢ ZOOM
+        </button>
+      </div>
+    </header>
+
+    <div class="result-layout">
+      <!-- LEFT: Exact Illustrated Photo Dispenser Chute with Sliding Strip -->
+      <div class="chute-column">
+        <div class="chute-stage" id="chute-stage">
+          <!-- Exact untouched Fotokabin — Boş Fotoğraf Çıkışı.png -->
+          <img class="chute-img" src="assets/photo-chute.png" alt="Photo Booth Dispenser Chute" draggable="false">
+
+          <!-- Clipping window aligned precisely below the top dark roller (y = 22.15%) -->
+          <div class="chute-slot-window" id="chute-slot-window">
+            <div class="roller-shadow" aria-hidden="true"></div>
+            <div class="strip-carrier" id="strip-carrier">
+              <canvas id="strip-canvas"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <p class="chute-tip" id="chute-tip">
+          Click a sticker to stamp · Drag stickers on the strip
+        </p>
+      </div>
+
+      <!-- RIGHT: Analog Customization Studio -->
+      <aside class="editor-panel" id="editor-panel">
+        <div class="editor-card">
+          <div class="editor-card-head">
+            <h2>Customize Strip</h2>
+            <span class="editor-tag" id="editor-strip-meta">4-FRAME · 35MM</span>
+          </div>
+
+          <!-- 1. Film Grade (Live Re-grade!) -->
+          <div class="ed-section">
+            <label class="ed-label">FILM STOCK</label>
+            <div class="ed-pill-row" id="result-filters">
+              <button class="ed-pill active" type="button" data-filter="bw">
+                <span class="film-dot dot-bw"></span>B&amp;W
+              </button>
+              <button class="ed-pill" type="button" data-filter="warm">
+                <span class="film-dot dot-warm"></span>WARM FILM
+              </button>
+              <button class="ed-pill" type="button" data-filter="sepia">
+                <span class="film-dot dot-sepia"></span>SEPIA
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Frame Color -->
+          <div class="ed-section">
+            <label class="ed-label">FRAME COLOR</label>
+            <div class="swatch-row" id="swatch-row">
+              <button class="swatch active" type="button" data-color="#ffffff" style="--sw:#ffffff" title="Classic White"></button>
+              <button class="swatch" type="button" data-color="#f4efe3" style="--sw:#f4efe3" title="Warm Paper"></button>
+              <button class="swatch" type="button" data-color="#2c546e" style="--sw:#2c546e" title="Booth Blue"></button>
+              <button class="swatch" type="button" data-color="#101f36" style="--sw:#101f36" title="Curtain Navy"></button>
+              <button class="swatch" type="button" data-color="#e6c86e" style="--sw:#e6c86e" title="Enter Brass"></button>
+              <button class="swatch" type="button" data-color="#c86d51" style="--sw:#c86d51" title="Terracotta"></button>
+              <button class="swatch" type="button" data-color="#8fa48d" style="--sw:#8fa48d" title="Sage"></button>
+              <button class="swatch" type="button" data-color="#dfc1be" style="--sw:#dfc1be" title="Dusty Rose"></button>
+              <button class="swatch" type="button" data-color="#181a1c" style="--sw:#181a1c" title="Darkroom Black"></button>
+            </div>
+          </div>
+
+          <!-- 3. Pattern -->
+          <div class="ed-section">
+            <label class="ed-label">BORDER PATTERN</label>
+            <div class="pat-row" id="pat-row">
+              <button class="pat-chip active" type="button" data-pattern="solid">Solid</button>
+              <button class="pat-chip" type="button" data-pattern="film">35mm Film</button>
+              <button class="pat-chip" type="button" data-pattern="stripes">Stripes</button>
+              <button class="pat-chip" type="button" data-pattern="dots">Dots</button>
+              <button class="pat-chip" type="button" data-pattern="check">Check</button>
+            </div>
+          </div>
+
+          <!-- 4. Stickers & Stamps -->
+          <div class="ed-section">
+            <div class="ed-label-row">
+              <label class="ed-label">STICKERS &amp; STAMPS</label>
+              <div class="sticker-tools">
+                <button class="mini-link" id="btn-sticker-undo" type="button" disabled>Undo</button>
+                <button class="mini-link" id="btn-sticker-clear" type="button" disabled>Clear</button>
+              </div>
+            </div>
+            <div class="sticker-grid" id="sticker-grid">
+              <button class="sticker-btn" type="button" data-sticker="sparkle" title="Add Sparkle">✦ Sparkle</button>
+              <button class="sticker-btn" type="button" data-sticker="star" title="Add Star">★ Star</button>
+              <button class="sticker-btn" type="button" data-sticker="heart" title="Add Heart">♥ Heart</button>
+              <button class="sticker-btn" type="button" data-sticker="flower" title="Add Flower">✿ Daisy</button>
+              <button class="sticker-btn" type="button" data-sticker="bow" title="Add Ribbon">⋈ Bow</button>
+              <button class="sticker-btn" type="button" data-sticker="sun" title="Add Sun">☀ Sun</button>
+              <button class="sticker-btn" type="button" data-sticker="analog" title="Add Analog Stamp">ANALOG</button>
+              <button class="sticker-btn" type="button" data-sticker="enter" title="Add Enter Tag">ENTER</button>
+            </div>
+          </div>
+
+          <!-- 5. Caption & Date -->
+          <div class="ed-section">
+            <div class="ed-label-row">
+              <label class="ed-label" for="caption-input">CAPTION &amp; STAMP</label>
+              <label class="date-toggle">
+                <input type="checkbox" id="toggle-date" checked>
+                <span>Date Stamp</span>
+              </label>
+            </div>
+            <input class="caption-input" id="caption-input" type="text" maxlength="32" placeholder="Write a memory, name, or place…">
+          </div>
+
+          <!-- Actions -->
+          <div class="editor-actions">
+            <button class="btn-outline" id="btn-retake" type="button">NEW SESSION</button>
+            <button class="btn-primary" id="btn-download" type="button">DOWNLOAD PNG</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- Full-size Inspect Lightbox -->
+  <div class="zoom-modal" id="zoom-modal" aria-hidden="true">
+    <div class="zoom-backdrop" id="zoom-backdrop"></div>
+    <div class="zoom-content">
+      <button class="zoom-close" id="btn-zoom-close" type="button" aria-label="Close preview">✕</button>
+      <img id="zoom-img" alt="Enlarged photo strip">
+    </div>
+  </div>
+
+  <!-- Off-screen capture canvas -->
+  <canvas id="capture-canvas" class="visually-hidden"></canvas>
+
+  <script src="app.js"></script>
+</body>
+</html>
