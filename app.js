@@ -11,6 +11,23 @@
   const $ = id => document.getElementById(id);
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+  /* ── Canvas roundRect polyfill for older mobile Safari (iOS < 16) ── */
+  if (
+    typeof CanvasRenderingContext2D !== 'undefined' &&
+    !CanvasRenderingContext2D.prototype.roundRect
+  ) {
+    CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
+      const radius = Math.min(typeof r === 'number' ? r : 0, w / 2, h / 2);
+      this.moveTo(x + radius, y);
+      this.arcTo(x + w, y, x + w, y + h, radius);
+      this.arcTo(x + w, y + h, x, y + h, radius);
+      this.arcTo(x, y + h, x, y, radius);
+      this.arcTo(x, y, x + w, y, radius);
+      this.closePath();
+      return this;
+    };
+  }
+
   /* ── Application State ── */
   const state = {
     photoCount: 4,          // 4 or 3
@@ -1435,18 +1452,33 @@
     triggerDispenserSlide();
   });
 
-  // Zoom Inspect Modal
+  // Zoom Inspect & Mobile Save Modal
   const zoomModal = $('zoom-modal');
-  $('btn-zoom-strip').addEventListener('click', () => {
-    SFX.click();
-    const hiRes = renderStrip(3);
-    $('zoom-img').src = hiRes.toDataURL('image/png');
+  let lastExportBlob = null;
+  let lastExportFilename = '';
+
+  function openZoomPreview({ saveMode = false, dataUrl = null, blob = null, filename = '' } = {}) {
+    if (!dataUrl) {
+      const hiRes = renderStrip(3);
+      dataUrl = hiRes.toDataURL('image/png');
+      blob = dataUrlToBlob(dataUrl);
+      filename = `analog-photos-${Date.now()}.png`;
+    }
+    lastExportBlob = blob;
+    lastExportFilename = filename || `analog-photos-${Date.now()}.png`;
+    $('zoom-img').src = dataUrl;
+    zoomModal.classList.toggle('save-mode', saveMode);
     zoomModal.classList.add('open');
     zoomModal.setAttribute('aria-hidden', 'false');
+  }
+
+  $('btn-zoom-strip').addEventListener('click', () => {
+    SFX.click();
+    openZoomPreview({ saveMode: false });
   });
 
   function closeZoom() {
-    zoomModal.classList.remove('open');
+    zoomModal.classList.remove('open', 'save-mode');
     zoomModal.setAttribute('aria-hidden', 'true');
   }
   $('btn-zoom-close').addEventListener('click', closeZoom);
@@ -1455,14 +1487,125 @@
     if (e.key === 'Escape' && zoomModal.classList.contains('open')) closeZoom();
   });
 
-  // High-res 3x PNG Download
-  $('btn-download').addEventListener('click', () => {
-    SFX.click();
-    const hiRes = renderStrip(3);
+  /* ── Mobile & Desktop High-Res Export Helpers ── */
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isInAppBrowser = /FBAN|FBAV|Instagram|Line\/|Twitter|Snapchat|TikTok|WhatsApp|MicroMessenger|wv\)/i.test(ua);
+
+  function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    if (parts.length < 2 || !parts[1]) return null;
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const binary = atob(parts[1]);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: mime });
+  }
+
+  function canShareImageFile(file) {
+    try {
+      return (
+        typeof navigator.share === 'function' &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files: [file] })
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function triggerBlobDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.download = `analog-photos-${Date.now()}.png`;
-    link.href = hiRes.toDataURL('image/png');
+    link.href = url;
+    link.download = filename;
+    link.rel = 'noopener';
+    link.style.display = 'none';
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
+  function flashDownloadSuccess() {
+    const btn = $('btn-download');
+    const original = btn.dataset.origLabel || btn.textContent;
+    btn.dataset.origLabel = original;
+    btn.textContent = 'SAVED ✓';
+    clearTimeout(btn._resetTimer);
+    btn._resetTimer = setTimeout(() => {
+      btn.textContent = original;
+    }, 1800);
+  }
+
+  $('btn-zoom-download').addEventListener('click', () => {
+    SFX.click();
+    if (lastExportBlob) {
+      triggerBlobDownload(lastExportBlob, lastExportFilename);
+    }
+  });
+
+  // High-res 3x PNG Download (Desktop Blob download + iOS/In-App Web Share + Long-Press Fallback)
+  let exporting = false;
+  $('btn-download').addEventListener('click', async () => {
+    if (exporting) return;
+    exporting = true;
+    SFX.click();
+
+    try {
+      const hiRes = renderStrip(3);
+      const filename = `analog-photos-${Date.now()}.png`;
+      // Synchronous conversion preserves transient user gesture for iOS navigator.share()
+      const dataUrl = hiRes.toDataURL('image/png');
+      const blob = dataUrlToBlob(dataUrl);
+
+      if (!blob) {
+        openZoomPreview({ saveMode: true, dataUrl, blob: null, filename });
+        return;
+      }
+
+      // On iOS (Safari/Chrome/WKWebView) and in-app browsers, <a download> fails or saves to Files instead of Photos.
+      // Web Share API opens the native iOS Share Sheet ("Save Image" directly to Photos).
+      if (isIOS || isInAppBrowser) {
+        let shared = false;
+        if (typeof File === 'function') {
+          const file = new File([blob], filename, { type: 'image/png' });
+          if (canShareImageFile(file)) {
+            try {
+              await navigator.share({ files: [file] });
+              shared = true;
+              flashDownloadSuccess();
+            } catch (err) {
+              // User tapped Cancel on the native share sheet — exit cleanly
+              if (err && err.name === 'AbortError') {
+                return;
+              }
+            }
+          }
+        }
+        if (!shared) {
+          // Bulletproof fallback: open full-res <img> preview so user can long-press -> Save to Photos
+          openZoomPreview({ saveMode: true, dataUrl, blob, filename });
+        }
+        return;
+      }
+
+      // Desktop & standard Android browsers: Blob Object URL + DOM-attached <a download>
+      // (Fixes mobile Chrome's 2MB data: URI download failure & detached <a> bug)
+      if ('download' in HTMLAnchorElement.prototype) {
+        triggerBlobDownload(blob, filename);
+        flashDownloadSuccess();
+      } else {
+        openZoomPreview({ saveMode: true, dataUrl, blob, filename });
+      }
+    } finally {
+      exporting = false;
+    }
   });
 
   // New Session -> Back to Booth Entrance

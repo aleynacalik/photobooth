@@ -418,12 +418,16 @@
     </div>
   </section>
 
-  <!-- Full-size Inspect Lightbox -->
+  <!-- Full-size Inspect / Mobile Save Lightbox -->
   <div class="zoom-modal" id="zoom-modal" aria-hidden="true">
     <div class="zoom-backdrop" id="zoom-backdrop"></div>
     <div class="zoom-content">
       <button class="zoom-close" id="btn-zoom-close" type="button" aria-label="Close preview">✕</button>
       <img id="zoom-img" alt="Enlarged photo strip">
+      <div class="zoom-save-bar" id="zoom-save-bar">
+        <p class="zoom-hint" id="zoom-hint">Press &amp; hold the photo strip to save to Photos</p>
+        <button class="btn-brass zoom-dl-btn" id="btn-zoom-download" type="button">DOWNLOAD FILE</button>
+      </div>
     </div>
   </div>
 

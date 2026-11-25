@@ -1642,7 +1642,7 @@ body.in-booth .sound-toggle {
   border: 2px solid rgba(239, 238, 224, 0.45);
 }
 
-/* ── Zoom Inspect Modal ── */
+/* ── Zoom Inspect & Mobile Save Modal ── */
 .zoom-modal {
   position: fixed;
   inset: 0;
@@ -1650,6 +1650,7 @@ body.in-booth .sound-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
@@ -1661,22 +1662,30 @@ body.in-booth .sound-toggle {
 .zoom-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(12, 24, 38, 0.78);
+  background: rgba(12, 24, 38, 0.82);
   backdrop-filter: blur(4px);
 }
 .zoom-content {
   position: relative;
   z-index: 2;
-  max-height: 90vh;
+  max-height: 92dvh;
+  max-width: 92vw;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 12px;
 }
 .zoom-content img {
-  max-height: 86vh;
+  max-height: 78dvh;
   max-width: 88vw;
+  width: auto;
+  height: auto;
   border-radius: 4px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  -webkit-touch-callout: default;
+  user-select: auto;
+  pointer-events: auto;
 }
 .zoom-close {
   position: absolute;
@@ -1692,6 +1701,37 @@ body.in-booth .sound-toggle {
   font-weight: 700;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
+}
+.zoom-save-bar {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.zoom-modal.save-mode .zoom-save-bar {
+  display: flex;
+}
+.zoom-hint {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(16, 31, 54, 0.88);
+  border: 1.5px solid rgba(230, 200, 110, 0.55);
+  color: var(--cream);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.zoom-dl-btn {
+  padding: 9px 18px;
+  font-size: 10px;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .zoom-save-bar {
+    display: flex;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1822,7 +1862,9 @@ body.in-booth .sound-toggle {
     font-size: 8.5px;
   }
   .zoom-close {
-    top: 10px;
-    right: 10px;
+    position: fixed;
+    top: calc(14px + env(safe-area-inset-top, 0px));
+    right: 14px;
+    z-index: 5;
   }
 }
