@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,600&family=Space+Grotesk:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 
@@ -425,8 +425,11 @@
       <button class="zoom-close" id="btn-zoom-close" type="button" aria-label="Close preview">✕</button>
       <img id="zoom-img" alt="Enlarged photo strip">
       <div class="zoom-save-bar" id="zoom-save-bar">
-        <p class="zoom-hint" id="zoom-hint">Press &amp; hold the photo strip to save to Photos</p>
-        <button class="btn-brass zoom-dl-btn" id="btn-zoom-download" type="button">DOWNLOAD FILE</button>
+        <p class="zoom-hint" id="zoom-hint">Press &amp; hold the photo strip → Save to Photos</p>
+        <div class="zoom-save-actions">
+          <button class="btn-primary zoom-dl-btn" id="btn-zoom-share" type="button">SAVE / SHARE</button>
+          <button class="btn-brass zoom-dl-btn" id="btn-zoom-download" type="button">DOWNLOAD FILE</button>
+        </div>
       </div>
     </div>
   </div>
@@ -434,6 +437,6 @@
   <!-- Off-screen capture canvas -->
   <canvas id="capture-canvas" class="visually-hidden"></canvas>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

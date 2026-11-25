@@ -1089,6 +1089,9 @@
     }
 
     ctx.restore();
+    if (!isExport) {
+      invalidateExportCache();
+    }
     return canvas;
   }
 
@@ -1452,48 +1455,54 @@
     triggerDispenserSlide();
   });
 
-  // Zoom Inspect & Mobile Save Modal
-  const zoomModal = $('zoom-modal');
-  let lastExportBlob = null;
-  let lastExportFilename = '';
-
-  function openZoomPreview({ saveMode = false, dataUrl = null, blob = null, filename = '' } = {}) {
-    if (!dataUrl) {
-      const hiRes = renderStrip(3);
-      dataUrl = hiRes.toDataURL('image/png');
-      blob = dataUrlToBlob(dataUrl);
-      filename = `analog-photos-${Date.now()}.png`;
-    }
-    lastExportBlob = blob;
-    lastExportFilename = filename || `analog-photos-${Date.now()}.png`;
-    $('zoom-img').src = dataUrl;
-    zoomModal.classList.toggle('save-mode', saveMode);
-    zoomModal.classList.add('open');
-    zoomModal.setAttribute('aria-hidden', 'false');
-  }
-
-  $('btn-zoom-strip').addEventListener('click', () => {
-    SFX.click();
-    openZoomPreview({ saveMode: false });
-  });
-
-  function closeZoom() {
-    zoomModal.classList.remove('open', 'save-mode');
-    zoomModal.setAttribute('aria-hidden', 'true');
-  }
-  $('btn-zoom-close').addEventListener('click', closeZoom);
-  $('zoom-backdrop').addEventListener('click', closeZoom);
-  window.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && zoomModal.classList.contains('open')) closeZoom();
-  });
-
-  /* ── Mobile & Desktop High-Res Export Helpers ── */
+  /* ── Mobile & Desktop High-Res Export Engine ── */
   const ua = navigator.userAgent || '';
   const isIOS = /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isInAppBrowser = /FBAN|FBAV|Instagram|Line\/|Twitter|Snapchat|TikTok|WhatsApp|MicroMessenger|wv\)/i.test(ua);
 
+  // Set clearer label on iOS so user knows it opens Save to Photos / Share
+  if (isIOS && $('btn-download')) {
+    $('btn-download').textContent = 'SAVE PHOTO';
+  }
+
+  let stripVersion = 0;
+  let exportCache = { version: -1, blob: null, file: null, dataUrl: null, filename: '' };
+  let prewarmTimer = null;
+
+  function makeImageFile(blob, filename) {
+    try {
+      if (blob && typeof File === 'function') {
+        return new File([blob], filename, { type: 'image/png' });
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  function invalidateExportCache() {
+    stripVersion++;
+    exportCache = { version: -1, blob: null, file: null, dataUrl: null, filename: '' };
+    clearTimeout(prewarmTimer);
+    if (!state.rawPhotos.length) return;
+    const targetVersion = stripVersion;
+    prewarmTimer = setTimeout(() => {
+      if (targetVersion !== stripVersion) return;
+      try {
+        const hiRes = renderStrip(3);
+        const filename = `analog-photos-${Date.now()}.png`;
+        if (typeof hiRes.toBlob === 'function') {
+          hiRes.toBlob(blob => {
+            if (!blob || targetVersion !== stripVersion) return;
+            const file = makeImageFile(blob, filename);
+            exportCache = { version: targetVersion, blob, file, dataUrl: null, filename };
+          }, 'image/png');
+        }
+      } catch (_) {}
+    }, 180);
+  }
+
   function dataUrlToBlob(dataUrl) {
+    if (!dataUrl || typeof dataUrl !== 'string') return null;
     const parts = dataUrl.split(',');
     if (parts.length < 2 || !parts[1]) return null;
     const mimeMatch = parts[0].match(/:(.*?);/);
@@ -1507,9 +1516,36 @@
     return new Blob([bytes], { type: mime });
   }
 
+  function blobToDataUrl(blob) {
+    return new Promise(resolve => {
+      try {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(blob);
+      } catch (_) {
+        resolve('');
+      }
+    });
+  }
+
+  function getExportBundleSync() {
+    if (exportCache.version === stripVersion && exportCache.blob) {
+      return exportCache;
+    }
+    const hiRes = renderStrip(3);
+    const filename = `analog-photos-${Date.now()}.png`;
+    const dataUrl = hiRes.toDataURL('image/png');
+    const blob = dataUrlToBlob(dataUrl);
+    const file = makeImageFile(blob, filename);
+    exportCache = { version: stripVersion, blob, file, dataUrl, filename };
+    return exportCache;
+  }
+
   function canShareImageFile(file) {
     try {
-      return (
+      return Boolean(
+        file &&
         typeof navigator.share === 'function' &&
         typeof navigator.canShare === 'function' &&
         navigator.canShare({ files: [file] })
@@ -1534,6 +1570,7 @@
 
   function flashDownloadSuccess() {
     const btn = $('btn-download');
+    if (!btn) return;
     const original = btn.dataset.origLabel || btn.textContent;
     btn.dataset.origLabel = original;
     btn.textContent = 'SAVED ✓';
@@ -1543,66 +1580,116 @@
     }, 1800);
   }
 
-  $('btn-zoom-download').addEventListener('click', () => {
-    SFX.click();
-    if (lastExportBlob) {
-      triggerBlobDownload(lastExportBlob, lastExportFilename);
+  // Zoom Inspect & Mobile Save Modal
+  const zoomModal = $('zoom-modal');
+  let lastExportBundle = null;
+
+  async function openZoomPreview({ saveMode = false, bundle = null } = {}) {
+    const exp = bundle || getExportBundleSync();
+    lastExportBundle = exp;
+
+    let imgSrc = exp.dataUrl;
+    if (!imgSrc && exp.blob) {
+      imgSrc = await blobToDataUrl(exp.blob);
+      exp.dataUrl = imgSrc;
+    }
+    if (!imgSrc) {
+      const hiRes = renderStrip(3);
+      imgSrc = hiRes.toDataURL('image/png');
+      exp.dataUrl = imgSrc;
+    }
+
+    $('zoom-img').src = imgSrc;
+    const shareBtn = $('btn-zoom-share');
+    if (shareBtn) {
+      shareBtn.classList.toggle('hidden', !canShareImageFile(exp.file));
+    }
+    zoomModal.classList.toggle('save-mode', saveMode);
+    zoomModal.classList.add('open');
+    zoomModal.setAttribute('aria-hidden', 'false');
+  }
+
+  $('btn-zoom-strip')?.addEventListener('click', () => {
+    try { SFX.click(); } catch (_) {}
+    openZoomPreview({ saveMode: false });
+  });
+
+  function closeZoom() {
+    zoomModal.classList.remove('open', 'save-mode');
+    zoomModal.setAttribute('aria-hidden', 'true');
+  }
+  $('btn-zoom-close')?.addEventListener('click', closeZoom);
+  $('zoom-backdrop')?.addEventListener('click', closeZoom);
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && zoomModal.classList.contains('open')) closeZoom();
+  });
+
+  $('btn-zoom-share')?.addEventListener('click', async () => {
+    try { SFX.click(); } catch (_) {}
+    const exp = lastExportBundle || getExportBundleSync();
+    if (canShareImageFile(exp.file)) {
+      try {
+        await navigator.share({ files: [exp.file] });
+        flashDownloadSuccess();
+      } catch (_) {}
     }
   });
 
-  // High-res 3x PNG Download (Desktop Blob download + iOS/In-App Web Share + Long-Press Fallback)
+  $('btn-zoom-download')?.addEventListener('click', () => {
+    try { SFX.click(); } catch (_) {}
+    const exp = lastExportBundle || getExportBundleSync();
+    if (exp.blob) {
+      triggerBlobDownload(exp.blob, exp.filename);
+      flashDownloadSuccess();
+    }
+  });
+
+  // High-res 3x PNG Download (Instant 0ms pre-cached File for iOS Web Share + Blob download + Long-Press Fallback)
   let exporting = false;
   $('btn-download').addEventListener('click', async () => {
     if (exporting) return;
     exporting = true;
-    SFX.click();
+    try { SFX.click(); } catch (_) {}
 
     try {
-      const hiRes = renderStrip(3);
-      const filename = `analog-photos-${Date.now()}.png`;
-      // Synchronous conversion preserves transient user gesture for iOS navigator.share()
-      const dataUrl = hiRes.toDataURL('image/png');
-      const blob = dataUrlToBlob(dataUrl);
+      const exp = getExportBundleSync();
 
-      if (!blob) {
-        openZoomPreview({ saveMode: true, dataUrl, blob: null, filename });
+      if (!exp.blob) {
+        await openZoomPreview({ saveMode: true, bundle: exp });
         return;
       }
 
       // On iOS (Safari/Chrome/WKWebView) and in-app browsers, <a download> fails or saves to Files instead of Photos.
-      // Web Share API opens the native iOS Share Sheet ("Save Image" directly to Photos).
+      // Calling navigator.share synchronously with the pre-cached File opens the native iOS Share Sheet ("Save Image").
       if (isIOS || isInAppBrowser) {
-        let shared = false;
-        if (typeof File === 'function') {
-          const file = new File([blob], filename, { type: 'image/png' });
-          if (canShareImageFile(file)) {
-            try {
-              await navigator.share({ files: [file] });
-              shared = true;
-              flashDownloadSuccess();
-            } catch (err) {
-              // User tapped Cancel on the native share sheet — exit cleanly
-              if (err && err.name === 'AbortError') {
-                return;
-              }
+        if (canShareImageFile(exp.file)) {
+          try {
+            await navigator.share({ files: [exp.file] });
+            flashDownloadSuccess();
+            return;
+          } catch (err) {
+            // User tapped Cancel on the native share sheet — exit cleanly
+            if (err && err.name === 'AbortError') {
+              return;
             }
           }
         }
-        if (!shared) {
-          // Bulletproof fallback: open full-res <img> preview so user can long-press -> Save to Photos
-          openZoomPreview({ saveMode: true, dataUrl, blob, filename });
-        }
+        // Bulletproof fallback: open full-res <img> preview so user can long-press -> Save to Photos
+        await openZoomPreview({ saveMode: true, bundle: exp });
         return;
       }
 
       // Desktop & standard Android browsers: Blob Object URL + DOM-attached <a download>
-      // (Fixes mobile Chrome's 2MB data: URI download failure & detached <a> bug)
       if ('download' in HTMLAnchorElement.prototype) {
-        triggerBlobDownload(blob, filename);
+        triggerBlobDownload(exp.blob, exp.filename);
         flashDownloadSuccess();
       } else {
-        openZoomPreview({ saveMode: true, dataUrl, blob, filename });
+        await openZoomPreview({ saveMode: true, bundle: exp });
       }
+    } catch (_) {
+      try {
+        await openZoomPreview({ saveMode: true });
+      } catch (__) {}
     } finally {
       exporting = false;
     }
